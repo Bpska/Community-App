@@ -1,0 +1,48 @@
+name: community_app
+description: A location-based community chat application with nearby user discovery, private messaging, and community groups.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI & Theming
+  cupertino_icons: ^1.0.2
+  google_fonts: ^6.1.0
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Networking & API
+  dio: ^5.4.0
+  socket_io_client: ^2.0.3
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  
+  # Location Services
+  geolocator: ^11.0.0
+  permission_handler: ^11.2.0
+  
+  # Image Handling
+  image_picker: ^1.0.7
+  
+  # Utilities
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # Uncomment and add assets when needed
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
