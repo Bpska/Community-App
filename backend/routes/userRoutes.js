@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
       // e.g. in.(1,2,3)
       const matches = id.match(/\((.*?)\)/);
       if (matches && matches[1]) {
-        const ids = matches[1].split(',');
+        const ids = matches[1].split(',').map(item => item.replace(/"/g, '').trim());
         const result = await db.query('SELECT * FROM users WHERE id = ANY($1)', [ids]);
         return res.json(result.rows);
       }
