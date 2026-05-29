@@ -29,8 +29,8 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=bps
       - POSTGRES_DB=community_app
-    ports:
-      - "5432:5432"
+    # Postgres port is not exposed to the host machine to prevent port conflicts.
+    # The backend container connects internally using DB_HOST=db and DB_PORT=5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Mount the schema.sql so Postgres initializes the DB automatically on first boot
