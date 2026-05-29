@@ -1,13 +1,31 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class AppConfig {
   // API Configuration
-  // API Configuration
-  // Using ADB Reverse Tunnel (adb reverse tcp:3000 tcp:3000)
-  static const String apiBaseUrl = 'http://127.0.0.1:3000/api'; // Tunneled to host
-  static const String socketUrl = 'http://127.0.0.1:3000'; // Tunneled to host
-  
+  // Android emulator uses 10.0.2.2 to reach host machine's localhost
+  // Physical devices use the machine's LAN IP address
+  static String get _baseUrl {
+    if (kIsWeb) {
+      return 'http://72.61.169.195:3002';
+    } else if (Platform.isAndroid) {
+      return 'http://72.61.169.195:3002';
+    } else {
+      return 'http://72.61.169.195:3002';
+    }
+  }
+
+  static String get apiBaseUrl => '$_baseUrl/api';
+  static String get authBaseUrl => '$_baseUrl/api/auth';
+  static String get socketUrl => _baseUrl;
+
   // App Configuration
-  static const String appName = 'Community Chat';
-  static const double defaultRadius = 2.0; // 2km default radius for nearby search
+  static const String appName = 'NearMe';
+  static const String appTagline = 'Your City, Filtered to the Five Kilometres That Are Actually Yours.';
+  static const String apiKey = 'DEV_API_KEY';
+  static const double defaultRadius = 2.0;     // 2km default radius for nearby search
+  static const double minRadius = 0.5;          // 500m minimum (pitch deck spec)
+  static const double maxRadius = 50.0;         // 50km maximum (pitch deck spec)
   static const int messagePageSize = 50;
   
   // Storage Keys
