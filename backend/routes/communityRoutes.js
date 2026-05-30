@@ -142,6 +142,78 @@ router.get('/:id/members', authMiddleware, async (req, res) => {
   }
 });
 
+// Update community (text only)
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const communityId = req.params.id;
+    const { name, description, category, type, radius } = req.body;
+    const userId = req.user.id;
+    
+    const result = await db.query(
+      `UPDATE communities 
+       SET name = COALESCE($1, name), 
+           description = COALESCE($2, description),
+           category = COALESCE($3, category),
+           type = COALESCE($4, type),
+           radius = COALESCE($5, radius)
+       WHERE id = $6 AND created_by = $7
+       RETURNING *`,
+      [name, description, category, type, radius, communityId, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'Unauthorized or community not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update community error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update community with files (logo, cover)
+router.post('/:id/update', authMiddleware, upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'cover', maxCount: 1 }]), async (req, res) => {
+  try {
+    const communityId = req.params.id;
+    const { name, description, category, type, radius } = req.body;
+    const userId = req.user.id;
+
+    let logoPath = null;
+    let coverPath = null;
+
+    if (req.files) {
+      if (req.files['logo']) {
+        logoPath = '/uploads/' + req.files['logo'][0].filename;
+      }
+      if (req.files['cover']) {
+        coverPath = '/uploads/' + req.files['cover'][0].filename;
+      }
+    }
+
+    const result = await db.query(
+      `UPDATE communities 
+       SET name = COALESCE($1, name), 
+           description = COALESCE($2, description),
+           category = COALESCE($3, category),
+           type = COALESCE($4, type),
+           radius = COALESCE($5, radius),
+           logo = COALESCE($6, logo),
+           cover = COALESCE($7, cover)
+       WHERE id = $8 AND created_by = $9
+       RETURNING *`,
+      [name, description, category, type, radius, logoPath, coverPath, communityId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'Unauthorized or community not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update community multipart error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const communityId = req.params.id;

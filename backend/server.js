@@ -28,6 +28,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/user', require('./routes/userRoutes'));
 app.use('/api/communities', require('./routes/communityRoutes'));
 app.use('/api/messages', require('./routes/messageRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -45,6 +46,8 @@ async function ensureDatabaseCompatibility() {
     // 1. Core compatibility alter statements
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)');
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE');
+    await db.query('ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE');
+    await db.query('ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_by VARCHAR(50)[] DEFAULT \'{}\'');
 
     // 2. Ensure all other tables are created if not initialized (dynamic migration check)
     const tablesCheck = await db.query(`

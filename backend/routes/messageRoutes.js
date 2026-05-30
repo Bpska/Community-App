@@ -25,18 +25,21 @@ router.get('/', authMiddleware, async (req, res) => {
     const { or, community_id, order, limit } = req.query;
     const sortDirection = parseOrder(order);
     const safeLimit = Math.min(Number(limit) || 250, 500);
+    const currentUserId = req.user.id;
 
     const commId = parseEqId(community_id);
     if (commId) {
       const result = await db.query(
-        `SELECT * FROM messages WHERE community_id = $1 ORDER BY created_at ${sortDirection} LIMIT $2`,
-        [commId, safeLimit]
+        `SELECT * FROM messages 
+         WHERE community_id = $1 
+           AND NOT ($3 = ANY(COALESCE(deleted_by, '{}')))
+         ORDER BY created_at ${sortDirection} LIMIT $2`,
+        [commId, safeLimit, currentUserId]
       );
       return res.json(result.rows);
     }
 
     const ids = extractUuids(or);
-    const currentUserId = req.user.id;
 
     if (ids.length >= 2) {
       const otherUserId = ids.find((id) => id !== currentUserId) || ids[1];
@@ -47,9 +50,10 @@ router.get('/', authMiddleware, async (req, res) => {
              (sender_id = $1 AND receiver_id = $2)
              OR (sender_id = $2 AND receiver_id = $1)
            )
+           AND NOT ($4 = ANY(COALESCE(deleted_by, '{}')))
          ORDER BY created_at ${sortDirection}
          LIMIT $3`,
-        [currentUserId, otherUserId, safeLimit]
+        [currentUserId, otherUserId, safeLimit, currentUserId]
       );
       return res.json(result.rows);
     }
@@ -58,9 +62,10 @@ router.get('/', authMiddleware, async (req, res) => {
       `SELECT * FROM messages
        WHERE community_id IS NULL
          AND (sender_id = $1 OR receiver_id = $1)
+         AND NOT ($3 = ANY(COALESCE(deleted_by, '{}')))
        ORDER BY created_at ${sortDirection}
        LIMIT $2`,
-      [currentUserId, safeLimit]
+      [currentUserId, safeLimit, currentUserId]
     );
     res.json(result.rows);
   } catch (err) {
@@ -87,6 +92,77 @@ router.post('/', authMiddleware, async (req, res) => {
       [senderId, receiver_id || null, community_id || null, message, req.body.status || 'sent']
     );
     res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Edit message (WhatsApp like edit)
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const userId = req.user.id;
+
+    if (!message) {
+      return res.status(400).json({ message: 'Message text is required' });
+    }
+
+    const result = await db.query(
+      `UPDATE messages 
+       SET message = $1, is_edited = TRUE, status = 'edited' 
+       WHERE id = $2 AND sender_id = $3 
+       RETURNING *`,
+      [message, id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'Unauthorized or message not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete message (WhatsApp like delete for me / everyone)
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query; // 'everyone' or 'me'
+    const userId = req.user.id;
+
+    if (type === 'everyone') {
+      const result = await db.query(
+        `UPDATE messages 
+         SET message = 'This message was deleted', status = 'deleted' 
+         WHERE id = $1 AND sender_id = $2 
+         RETURNING *`,
+        [id, userId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(403).json({ message: 'Unauthorized to delete this message for everyone' });
+      }
+      return res.json(result.rows[0]);
+    } else {
+      // Delete for me
+      const result = await db.query(
+        `UPDATE messages 
+         SET deleted_by = array_append(COALESCE(deleted_by, '{}'), $1) 
+         WHERE id = $2 
+         RETURNING *`,
+        [userId, id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Message not found' });
+      }
+      return res.json({ message: 'Message deleted for you' });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
