@@ -42,8 +42,36 @@ server.listen(PORT, '0.0.0.0', () => {
 
 async function ensureDatabaseCompatibility() {
   try {
+    // 1. Core compatibility alter statements
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)');
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE');
+
+    // 2. Ensure all other tables are created if not initialized (dynamic migration check)
+    const tablesCheck = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name IN ('users', 'communities', 'messages', 'community_members')
+    `);
+    
+    if (tablesCheck.rows.length < 4) {
+      console.log('Database tables missing. Automatically initializing tables from schema.sql...');
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Check parent folder for schema.sql (for docker setups), or backend folder
+      let schemaPath = path.join(__dirname, '../schema.sql');
+      if (!fs.existsSync(schemaPath)) {
+        schemaPath = path.join(__dirname, 'schema.sql');
+      }
+
+      if (fs.existsSync(schemaPath)) {
+        const schemaSql = fs.readFileSync(schemaPath).toString();
+        await db.query(schemaSql);
+        console.log('schema.sql successfully initialized on startup!');
+      } else {
+        console.warn('Could not find schema.sql to execute auto-migrations!');
+      }
+    }
   } catch (err) {
     console.warn('Database compatibility check skipped:', err.message);
   }

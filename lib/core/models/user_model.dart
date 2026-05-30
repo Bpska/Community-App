@@ -1,8 +1,11 @@
+import '../config/app_config.dart';
+
 class UserModel {
   final String id;
   final String name;
   final String email;
   final String? bio;
+  final String? phone;
   final String? gender;
   final int? age;
   final String? profilePhoto;
@@ -15,6 +18,7 @@ class UserModel {
     required this.name,
     required this.email,
     this.bio,
+    this.phone,
     this.gender,
     this.age,
     this.profilePhoto,
@@ -29,11 +33,12 @@ class UserModel {
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       bio: json['bio'],
+      phone: json['phone'],
       gender: json['gender'],
       age: json['age'],
-      profilePhoto: json['profilePhoto'] ?? json['profile_photo'],
-      latitude: json['latitude']?.toDouble(),
-      longitude: json['longitude']?.toDouble(),
+      profilePhoto: AppConfig.resolveMediaUrl(json['profilePhoto'] ?? json['profile_photo']),
+      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
+      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
       isOnline: json['isOnline'] ?? json['is_online'] ?? false,
     );
   }
@@ -44,6 +49,7 @@ class UserModel {
       'name': name,
       'email': email,
       'bio': bio,
+      'phone': phone,
       'gender': gender,
       'age': age,
       'profilePhoto': profilePhoto,
@@ -58,6 +64,7 @@ class UserModel {
     String? name,
     String? email,
     String? bio,
+    String? phone,
     String? gender,
     int? age,
     String? profilePhoto,
@@ -70,6 +77,7 @@ class UserModel {
       name: name ?? this.name,
       email: email ?? this.email,
       bio: bio ?? this.bio,
+      phone: phone ?? this.phone,
       gender: gender ?? this.gender,
       age: age ?? this.age,
       profilePhoto: profilePhoto ?? this.profilePhoto,

@@ -1,16 +1,14 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:flutter/foundation.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../config/app_config.dart';
 import 'storage_service.dart';
 
 class SocketService {
   static SocketService? _instance;
-  late IO.Socket _socket;
   final StorageService _storageService;
-  bool _isConnected = false;
+  io.Socket? _socket;
 
-  SocketService._(this._storageService) {
-    _initSocket();
-  }
+  SocketService._(this._storageService);
 
   static Future<SocketService> getInstance() async {
     if (_instance == null) {
@@ -20,126 +18,103 @@ class SocketService {
     return _instance!;
   }
 
-  void _initSocket() {
+  Future<void> connect() async {
+    if (_socket != null && _socket!.connected) return;
+    
     final token = _storageService.getToken();
     
-    _socket = IO.io(
-      AppConfig.socketUrl,
-      IO.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .setAuth({'token': token})
-          .build(),
+    _socket = io.io(AppConfig.socketUrl, io.OptionBuilder()
+        .setTransports(['websocket'])
+        .disableAutoConnect()
+        .setAuth({'token': token})
+        .build()
     );
 
-    _socket.onConnect((_) {
-      print('Socket connected');
-      _isConnected = true;
+    _socket!.connect();
+
+    _socket!.onConnect((_) {
+      final userId = _storageService.getUserId();
+      if (userId != null) {
+        _socket!.emit('register', userId);
+      }
+      debugPrint('SocketService: Connected to socket server.');
     });
 
-    _socket.onDisconnect((_) {
-      print('Socket disconnected');
-      _isConnected = false;
-    });
-
-    _socket.onConnectError((error) {
-      print('Socket connection error: $error');
-      _isConnected = false;
-    });
-
-    _socket.onError((error) {
-      print('Socket error: $error');
+    _socket!.onDisconnect((_) {
+      debugPrint('SocketService: Disconnected from socket server.');
     });
   }
 
-  // Connect to socket
-  void connect() {
-    if (!_isConnected) {
-      _socket.connect();
-    }
-  }
-
-  // Disconnect from socket
   void disconnect() {
-    if (_isConnected) {
-      _socket.disconnect();
-      _isConnected = false;
-    }
+    _socket?.disconnect();
+    _socket = null;
+    debugPrint('SocketService: Disconnected.');
   }
 
-  // Check if connected
-  bool get isConnected => _isConnected;
+  bool get isConnected => _socket?.connected ?? false;
 
-  // Listen to an event
   void on(String event, Function(dynamic) callback) {
-    _socket.on(event, callback);
+    _socket?.on(event, callback);
   }
 
-  // Stop listening to an event
   void off(String event) {
-    _socket.off(event);
+    _socket?.off(event);
   }
 
-  // Emit an event
   void emit(String event, dynamic data) {
-    if (_isConnected) {
-      _socket.emit(event, data);
-    } else {
-      print('Socket not connected. Cannot emit event: $event');
-    }
+    _socket?.emit(event, data);
   }
 
-  // Send private message
-  void sendPrivateMessage(String receiverId, String message) {
+  void sendPrivateMessage(String senderId, String receiverId, String message, String tempId) {
     emit(AppConfig.socketPrivateMessage, {
+      'senderId': senderId,
       'receiverId': receiverId,
       'message': message,
-      'timestamp': DateTime.now().toIso8601String(),
+      'tempId': tempId,
     });
   }
 
-  // Send community message
-  void sendCommunityMessage(String communityId, String message) {
+  void sendCommunityMessage(String communityId, String message, String senderId) {
     emit(AppConfig.socketCommunityMessage, {
       'communityId': communityId,
       'message': message,
-      'timestamp': DateTime.now().toIso8601String(),
+      'senderId': senderId,
     });
   }
 
-  // Listen to private messages
   void onPrivateMessage(Function(dynamic) callback) {
     on(AppConfig.socketPrivateMessage, callback);
   }
 
-  // Listen to community messages
   void onCommunityMessage(Function(dynamic) callback) {
     on(AppConfig.socketCommunityMessage, callback);
   }
 
-  // Listen to user online status
   void onUserOnline(Function(dynamic) callback) {
     on(AppConfig.socketUserOnline, callback);
   }
 
-  // Listen to user offline status
   void onUserOffline(Function(dynamic) callback) {
     on(AppConfig.socketUserOffline, callback);
   }
 
-  // Listen to message delivered
   void onMessageDelivered(Function(dynamic) callback) {
     on(AppConfig.socketMessageDelivered, callback);
   }
+  
+  void onMessageSent(Function(dynamic) callback) {
+    on('message_sent', callback);
+  }
 
-  // Listen to message seen
   void onMessageSeen(Function(dynamic) callback) {
     on(AppConfig.socketMessageSeen, callback);
   }
 
-  // Dispose (cleanup)
+  void markAsSeen(String messageId, String userId) {
+    emit('mark_seen', {'messageId': messageId, 'userId': userId});
+  }
+
   void dispose() {
     disconnect();
-    _socket.dispose();
   }
 }

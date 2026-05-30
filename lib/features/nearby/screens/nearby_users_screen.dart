@@ -98,7 +98,7 @@ class _NearbyUsersScreenState extends State<NearbyUsersScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'There are no users within 2km radius',
+                      'There are no users within 50km radius',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,

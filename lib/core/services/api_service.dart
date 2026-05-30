@@ -114,4 +114,33 @@ class ApiService {
       rethrow;
     }
   }
+
+  // POST multipart with both text fields and files
+  Future<Response> postMultipart(
+    String path, {
+    Map<String, dynamic>? fields,
+    Map<String, String>? files,
+  }) async {
+    try {
+      Map<String, dynamic> formDataMap = {};
+      
+      // Add text fields
+      if (fields != null) {
+        formDataMap.addAll(fields);
+      }
+      
+      // Add files
+      if (files != null) {
+        for (var entry in files.entries) {
+          formDataMap[entry.key] = await MultipartFile.fromFile(entry.value);
+        }
+      }
+      
+      FormData formData = FormData.fromMap(formDataMap);
+      final response = await _dio.post(path, data: formData);
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

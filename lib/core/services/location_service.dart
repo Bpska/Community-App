@@ -24,28 +24,41 @@ class LocationService {
     return await Geolocator.requestPermission();
   }
 
-  // Get current position
+  // Get current position with quick fallbacks to avoid blocking
   Future<Position?> getCurrentPosition() async {
-    bool serviceEnabled = await isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return null;
-    }
-
-    LocationPermission permission = await checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await requestPermission();
-      if (permission == LocationPermission.denied) {
+    try {
+      bool serviceEnabled = await isLocationServiceEnabled();
+      if (!serviceEnabled) {
         return null;
       }
-    }
 
-    if (permission == LocationPermission.deniedForever) {
+      LocationPermission permission = await checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await requestPermission();
+        if (permission == LocationPermission.denied) {
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      // Try fast last-known position first
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        return lastKnown;
+      }
+
+      // Fetch with timeout to prevent infinite lag/hang
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 4),
+      );
+    } catch (e) {
+      print('Location error: $e');
       return null;
     }
-
-    return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
   }
 
   // Calculate distance between two coordinates in kilometers

@@ -5,8 +5,12 @@ import '../../../core/utils/validators.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../core/services/image_service.dart';
+import '../../../core/services/location_service.dart';
 import '../providers/community_provider.dart';
+import '../../../core/config/theme_config.dart';
 import 'dart:io';
+
+import '../../auth/providers/auth_provider.dart';
 
 class CreateCommunityScreen extends StatefulWidget {
   const CreateCommunityScreen({super.key});
@@ -105,6 +109,11 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
         return;
       }
 
+      // Capture user location for map pin
+      final locationService = LocationService.getInstance();
+      final position = await locationService.getCurrentPosition();
+      final currentUser = context.read<AuthProvider>().currentUser;
+
       final communityProvider = context.read<CommunityProvider>();
       final success = await communityProvider.createCommunity(
         name: _nameController.text.trim(),
@@ -112,6 +121,8 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
         category: _selectedCategory!,
         type: _communityType,
         radius: _radius,
+        latitude: position?.latitude ?? currentUser?.latitude,
+        longitude: position?.longitude ?? currentUser?.longitude,
         logo: _logoImage,
         cover: _coverImage,
       );
@@ -158,8 +169,9 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                     height: 150,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
+                      color: NearMeColors.navyCard,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: NearMeColors.navyBorder, width: 1.5),
                       image: _coverImage != null
                           ? DecorationImage(
                               image: FileImage(_coverImage!),
@@ -171,9 +183,12 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                         ? const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_photo_alternate, size: 48),
+                              Icon(Icons.add_photo_alternate_rounded, size: 40, color: NearMeColors.gold),
                               SizedBox(height: 8),
-                              Text('Add Cover Image'),
+                              Text(
+                                'Add Cover Image',
+                                style: TextStyle(color: NearMeColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
                             ],
                           )
                         : null,
@@ -190,8 +205,9 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(12),
+                          color: NearMeColors.navyCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: NearMeColors.navyBorder, width: 1.5),
                           image: _logoImage != null
                               ? DecorationImage(
                                   image: FileImage(_logoImage!),
@@ -200,15 +216,15 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                               : null,
                         ),
                         child: _logoImage == null
-                            ? const Icon(Icons.add_a_photo, size: 32)
+                            ? const Icon(Icons.add_a_photo_rounded, size: 28, color: NearMeColors.gold)
                             : null,
                       ),
                     ),
                     const SizedBox(width: 16),
                     const Expanded(
                       child: Text(
-                        'Add Logo',
-                        style: TextStyle(fontSize: 14),
+                        'Add Logo Image',
+                        style: TextStyle(fontSize: 14, color: NearMeColors.textSecondary, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -240,7 +256,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                   children: [
                     const Text(
                       'Category',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: NearMeColors.textPrimary),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
@@ -267,7 +283,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 // Community Type
                 const Text(
                   'Community Type',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: NearMeColors.textPrimary),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -306,7 +322,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                   children: [
                     Text(
                       'Radius: ${_radius.toStringAsFixed(1)} km',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: NearMeColors.textPrimary),
                     ),
                     Slider(
                       value: _radius,
@@ -314,6 +330,8 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                       max: 10.0,
                       divisions: 18,
                       label: '${_radius.toStringAsFixed(1)} km',
+                      activeColor: NearMeColors.gold,
+                      inactiveColor: NearMeColors.navyBorder,
                       onChanged: (value) {
                         setState(() {
                           _radius = value;

@@ -1,3 +1,5 @@
+import '../config/app_config.dart';
+
 class MessageModel {
   final String id;
   final String senderId;
@@ -7,6 +9,9 @@ class MessageModel {
   final DateTime timestamp;
   final String status; // sent, delivered, seen
 
+  final String? senderName;
+  final String? senderPhoto;
+
   MessageModel({
     required this.id,
     required this.senderId,
@@ -15,19 +20,31 @@ class MessageModel {
     required this.message,
     required this.timestamp,
     this.status = 'sent',
+    this.senderName,
+    this.senderPhoto,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
+    // Parse timestamp - handle both 'timestamp' and 'createdAt' fields
+    DateTime parsedTimestamp = DateTime.now();
+    if (json['timestamp'] != null) {
+      parsedTimestamp = DateTime.parse(json['timestamp']);
+    } else if (json['createdAt'] != null) {
+      parsedTimestamp = DateTime.parse(json['createdAt']);
+    } else if (json['created_at'] != null) {
+      parsedTimestamp = DateTime.parse(json['created_at']);
+    }
+    
     return MessageModel(
       id: json['id']?.toString() ?? '',
       senderId: json['senderId']?.toString() ?? json['sender_id']?.toString() ?? '',
       receiverId: json['receiverId']?.toString() ?? json['receiver_id']?.toString(),
       communityId: json['communityId']?.toString() ?? json['community_id']?.toString(),
       message: json['message'] ?? '',
-      timestamp: json['timestamp'] != null
-          ? DateTime.parse(json['timestamp'])
-          : DateTime.now(),
+      timestamp: parsedTimestamp,
       status: json['status'] ?? 'sent',
+      senderName: json['senderName'] ?? json['sender_name'],
+      senderPhoto: AppConfig.resolveMediaUrl(json['senderPhoto'] ?? json['sender_photo']),
     );
   }
 
@@ -40,6 +57,8 @@ class MessageModel {
       'message': message,
       'timestamp': timestamp.toIso8601String(),
       'status': status,
+      'senderName': senderName,
+      'senderPhoto': senderPhoto,
     };
   }
 
@@ -51,6 +70,8 @@ class MessageModel {
     String? message,
     DateTime? timestamp,
     String? status,
+    String? senderName,
+    String? senderPhoto,
   }) {
     return MessageModel(
       id: id ?? this.id,
@@ -60,6 +81,9 @@ class MessageModel {
       message: message ?? this.message,
       timestamp: timestamp ?? this.timestamp,
       status: status ?? this.status,
+      senderName: senderName ?? this.senderName,
+      senderPhoto: senderPhoto ?? this.senderPhoto,
     );
   }
 }
+

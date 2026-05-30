@@ -5,6 +5,7 @@ import 'core/services/api_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/socket_service.dart';
 import 'core/services/location_service.dart';
+import 'core/services/theme_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/profile/providers/profile_provider.dart';
 import 'features/nearby/providers/nearby_provider.dart';
@@ -43,12 +44,16 @@ void main() async {
         
         // Chat Provider
         ChangeNotifierProvider(
-          create: (_) => ChatProvider(apiService, socketService),
+          create: (_) => ChatProvider(apiService, socketService, storageService),
         ),
         
         // Community Provider
         ChangeNotifierProvider(
           create: (_) => CommunityProvider(apiService),
+        ),
+
+        ChangeNotifierProvider(
+          create: (_) => ThemeService(storageService),
         ),
       ],
       child: App(isLoggedIn: isLoggedIn),

@@ -5,6 +5,8 @@ class MessageBubble extends StatelessWidget {
   final bool isMe;
   final String timestamp;
   final String status;
+  final String? senderName;
+  final String? senderPhoto;
 
   const MessageBubble({
     super.key,
@@ -12,6 +14,8 @@ class MessageBubble extends StatelessWidget {
     required this.isMe,
     required this.timestamp,
     this.status = 'sent',
+    this.senderName,
+    this.senderPhoto,
   });
 
   @override
@@ -23,9 +27,10 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            const CircleAvatar(
+            CircleAvatar(
               radius: 12,
-              child: Icon(Icons.person, size: 14),
+              backgroundImage: senderPhoto != null ? NetworkImage(senderPhoto!) : null,
+              child: senderPhoto == null ? const Icon(Icons.person, size: 14) : null,
             ),
             const SizedBox(width: 8),
           ],
@@ -46,6 +51,17 @@ class MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (!isMe && senderName != null) ...[
+                    Text(
+                      senderName!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   Text(
                     message,
                     style: TextStyle(
@@ -67,11 +83,13 @@ class MessageBubble extends StatelessWidget {
                       if (isMe) ...[
                         const SizedBox(width: 4),
                         Icon(
-                          status == 'seen'
-                              ? Icons.done_all
-                              : status == 'delivered'
+                          status == 'sending'
+                              ? Icons.access_time
+                              : status == 'seen'
                                   ? Icons.done_all
-                                  : Icons.done,
+                                  : status == 'delivered'
+                                      ? Icons.done_all
+                                      : Icons.done,
                           size: 14,
                           color: status == 'seen' ? Colors.blue : Colors.white70,
                         ),

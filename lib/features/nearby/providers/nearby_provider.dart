@@ -39,11 +39,23 @@ class NearbyProvider with ChangeNotifier {
 
       _currentPosition = position;
 
-      // Fetch nearby users from API
+      // Update our own location in the backend first
+      try {
+        await _apiService.put('/users/location', data: {
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+        });
+        print('Own location updated before nearby search');
+      } catch (e) {
+        print('Failed to update own location: $e');
+        // Continue with fetch anyway
+      }
+
+      // Fetch nearby users from API (50km radius for better coverage)
       final response = await _apiService.get('/users/nearby', queryParameters: {
         'latitude': position.latitude,
         'longitude': position.longitude,
-        'radius': 2.0, // 2km radius
+        'radius': 50.0,
       });
 
       if (response.statusCode == 200) {
@@ -67,6 +79,7 @@ class NearbyProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      print('Nearby fetch error: $e');
       _error = 'Failed to fetch nearby users';
       _isLoading = false;
       notifyListeners();

@@ -6,6 +6,8 @@ class AppConfig {
   // Android emulator uses 10.0.2.2 to reach host machine's localhost
   // Physical devices use the machine's LAN IP address
   static String get _baseUrl {
+    // VPS IP Address: 'http://72.61.169.195:3002'
+    // Local IP Address:
     if (kIsWeb) {
       return 'http://72.61.169.195:3002';
     } else if (Platform.isAndroid) {
@@ -15,9 +17,21 @@ class AppConfig {
     }
   }
 
+  static String get baseUrl => _baseUrl;
   static String get apiBaseUrl => '$_baseUrl/api';
   static String get authBaseUrl => '$_baseUrl/api/auth';
   static String get socketUrl => _baseUrl;
+
+  static String? resolveMediaUrl(String? value) {
+    if (value == null || value.isEmpty) return value;
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    if (value.startsWith('/')) {
+      return '$_baseUrl$value';
+    }
+    return value;
+  }
 
   // App Configuration
   static const String appName = 'NearMe';

@@ -37,18 +37,20 @@ class _CommunityListScreenState extends State<CommunityListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Communities'),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+          preferredSize: const Size.fromHeight(64),
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search communities...',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -66,8 +68,34 @@ class _CommunityListScreenState extends State<CommunityListScreen> {
       ),
       body: Consumer<CommunityProvider>(
         builder: (context, communityProvider, child) {
-          if (communityProvider.isLoading && communityProvider.communities.isEmpty) {
+          if (communityProvider.isLoading &&
+              communityProvider.communities.isEmpty) {
             return const LoadingIndicator(message: 'Loading communities...');
+          }
+
+          if (communityProvider.error != null &&
+              communityProvider.communities.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    communityProvider.error!,
+                    style: TextStyle(color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        context.read<CommunityProvider>().fetchCommunities(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
           }
 
           if (communityProvider.communities.isEmpty) {
@@ -77,98 +105,184 @@ class _CommunityListScreenState extends State<CommunityListScreen> {
                 children: [
                   Icon(Icons.group_outlined, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
-                  const Text('No communities found'),
+                  const Text(
+                    'No communities found',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Be the first to create one!',
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
                 ],
               ),
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: communityProvider.communities.length,
-            itemBuilder: (context, index) {
-              final community = communityProvider.communities[index];
-              
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    radius: 28,
-                    backgroundImage: community.logo != null
-                        ? NetworkImage(community.logo!)
-                        : null,
-                    child: community.logo == null
-                        ? const Icon(Icons.group)
-                        : null,
-                  ),
-                  title: Text(
-                    community.name,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(
-                        community.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
+          return RefreshIndicator(
+            onRefresh: () =>
+                context.read<CommunityProvider>().fetchCommunities(),
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+              itemCount: communityProvider.communities.length,
+              itemBuilder: (context, index) {
+                final community = communityProvider.communities[index];
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/community-details',
+                        arguments: community,
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.people, size: 14, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${community.membersCount} members',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                          const SizedBox(width: 12),
+                          // Community Icon
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
+                            width: 56,
+                            height: 56,
                             decoration: BoxDecoration(
-                              color: community.type == 'public'
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(12),
+                              color: theme.colorScheme.primaryContainer,
                             ),
-                            child: Text(
-                              community.type.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: community.type == 'public'
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
+                            clipBehavior: Clip.antiAlias,
+                            child: community.logo != null
+                                ? Image.network(
+                                    community.logo!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            _buildLogoFallback(
+                                                community.name, theme),
+                                  )
+                                : _buildLogoFallback(community.name, theme),
+                          ),
+                          const SizedBox(width: 14),
+
+                          // Community Info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        community.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: community.type == 'public'
+                                            ? Colors.green.withOpacity(0.12)
+                                            : Colors.orange.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        community.type.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: community.type == 'public'
+                                              ? Colors.green
+                                              : Colors.orange,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  community.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(Icons.people_rounded,
+                                        size: 13, color: Colors.grey[500]),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${community.membersCount} members',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    if (community.category.isNotEmpty) ...[
+                                      const SizedBox(width: 10),
+                                      Text('•',
+                                          style: TextStyle(
+                                              color: Colors.grey[400])),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        community.category,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme.colorScheme.primary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/community-details',
-                      arguments: community,
-                    );
-                  },
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pushNamed(context, '/create-community');
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Create'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 70),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.pushNamed(context, '/create-community');
+          },
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Create'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoFallback(String name, ThemeData theme) {
+    return Container(
+      color: theme.colorScheme.primaryContainer,
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'C',
+          style: TextStyle(
+            color: theme.colorScheme.onPrimaryContainer,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/user_model.dart';
@@ -18,19 +19,35 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     // Fetch chat history
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().fetchChatHistory(widget.otherUser.id);
-      context.read<ChatProvider>().connect();
+      _fetchHistoryAndMarkSeen();
+      
+      // Poll database for new messages every 2 seconds
+      _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+        _fetchHistoryAndMarkSeen();
+      });
+    });
+  }
+
+  void _fetchHistoryAndMarkSeen() {
+    if (!mounted) return;
+    final currentUserId = context.read<AuthProvider>().currentUser?.id ?? '';
+    context.read<ChatProvider>().fetchChatHistory(widget.otherUser.id).then((_) {
+      if (mounted) {
+        context.read<ChatProvider>().markMessagesAsSeen(widget.otherUser.id, currentUserId);
+      }
     });
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/date_formatter.dart';
@@ -13,13 +14,28 @@ class RecentChatsScreen extends StatefulWidget {
 }
 
 class _RecentChatsScreenState extends State<RecentChatsScreen> {
+  Timer? _pollTimer;
+
   @override
   void initState() {
     super.initState();
     // Fetch conversations on load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChatProvider>().fetchConversations();
+      
+      // Poll recent conversations list every 5 seconds
+      _pollTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        if (mounted) {
+          context.read<ChatProvider>().fetchConversations();
+        }
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -31,6 +47,34 @@ class _RecentChatsScreenState extends State<RecentChatsScreen> {
       ),
       body: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
+          if (chatProvider.isLoading && chatProvider.recentConversations.isEmpty) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (chatProvider.error != null && chatProvider.recentConversations.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    chatProvider.error!,
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => chatProvider.fetchConversations(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           final conversations = chatProvider.recentConversations;
 
           if (conversations.isEmpty) {
