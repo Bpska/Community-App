@@ -24,8 +24,13 @@ router.get('/list', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const result = await db.query(`
       SELECT c.*, 
-        EXISTS(SELECT 1 FROM community_members cm WHERE cm.community_id = c.id AND cm.user_id = $1) as "isJoined"
+        EXISTS(SELECT 1 FROM community_members cm WHERE cm.community_id = c.id AND cm.user_id = $1) as "isJoined",
+        COUNT(cm_all.id)::int as "membersCount",
+        u.name as "creatorName"
       FROM communities c 
+      LEFT JOIN community_members cm_all ON cm_all.community_id = c.id
+      LEFT JOIN users u ON u.id = c.created_by
+      GROUP BY c.id, u.name
       ORDER BY c.created_at DESC
     `, [userId]);
     res.json(result.rows);
@@ -103,14 +108,57 @@ router.get('/search', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const result = await db.query(`
       SELECT c.*, 
-        EXISTS(SELECT 1 FROM community_members cm WHERE cm.community_id = c.id AND cm.user_id = $2) as "isJoined"
+        EXISTS(SELECT 1 FROM community_members cm WHERE cm.community_id = c.id AND cm.user_id = $2) as "isJoined",
+        COUNT(cm_all.id)::int as "membersCount",
+        u.name as "creatorName"
       FROM communities c 
+      LEFT JOIN community_members cm_all ON cm_all.community_id = c.id
+      LEFT JOIN users u ON u.id = c.created_by
       WHERE c.name ILIKE $1 OR c.description ILIKE $1 OR c.category ILIKE $1
+      GROUP BY c.id, u.name
       ORDER BY c.created_at DESC
     `, [`%${query}%`, userId]);
     res.json(result.rows);
   } catch (err) {
     console.error('Search error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/:id/members', authMiddleware, async (req, res) => {
+  try {
+    const communityId = req.params.id;
+    const result = await db.query(`
+      SELECT u.id, u.name, u.email, u.bio, u.profile_photo as "profilePhoto", u.is_online as "isOnline", cm.status
+      FROM community_members cm
+      JOIN users u ON u.id = cm.user_id
+      WHERE cm.community_id = $1
+      ORDER BY cm.joined_at ASC
+    `, [communityId]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Fetch members error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const communityId = req.params.id;
+    const userId = req.user.id;
+
+    const result = await db.query(
+      'DELETE FROM communities WHERE id = $1 AND created_by = $2 RETURNING *',
+      [communityId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Community not found or not owned by current user' });
+    }
+
+    res.json({ success: true, community: result.rows[0] });
+  } catch (err) {
+    console.error('Delete community error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

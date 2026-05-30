@@ -3,7 +3,9 @@ const cors = require('cors');
 const http = require('http');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 const { initSocket } = require('./socket');
+const db = require('./db');
 
 dotenv.config();
 
@@ -11,13 +13,19 @@ const app = express();
 const server = http.createServer(app);
 initSocket(server);
 
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/user', require('./routes/userRoutes'));
 app.use('/api/communities', require('./routes/communityRoutes'));
 app.use('/api/messages', require('./routes/messageRoutes'));
 
@@ -29,5 +37,16 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT} (accessible on LAN at http://10.77.166.107:${PORT})`);
+  console.log(`Server running on port ${PORT}`);
 });
+
+async function ensureDatabaseCompatibility() {
+  try {
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)');
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE');
+  } catch (err) {
+    console.warn('Database compatibility check skipped:', err.message);
+  }
+}
+
+ensureDatabaseCompatibility();

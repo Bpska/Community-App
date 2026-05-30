@@ -53,6 +53,10 @@ router.post('/token', async (req, res) => {
     
     const user = result.rows[0];
 
+    if (user.is_active === false) {
+      return res.status(403).json({ message: 'Account is deactivated' });
+    }
+
     if (!user.password) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
@@ -74,6 +78,39 @@ router.post('/token', async (req, res) => {
 
 router.post('/sessions/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
+});
+
+router.put('/change-password', require('../middleware/authMiddleware'), async (req, res) => {
+  try {
+    const { currentPassword, password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: 'New password is required' });
+    }
+
+    const result = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    if (currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.query('UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [
+      hashedPassword,
+      req.user.id,
+    ]);
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;
