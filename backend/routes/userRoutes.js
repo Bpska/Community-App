@@ -261,6 +261,30 @@ router.put('/change-phone', authMiddleware, async (req, res) => {
   }
 });
 
+// Look up user by phone number
+router.get('/by-phone/:phone', authMiddleware, async (req, res) => {
+  try {
+    const { phone } = req.params;
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    const result = await db.query(
+      `SELECT * FROM users 
+       WHERE REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '(', ''), ')', '') = $1 
+          OR phone = $2 
+       LIMIT 1`,
+      [cleanPhone, phone]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(sanitizeUser(result.rows[0]));
+  } catch (err) {
+    console.error('Search user by phone error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.post('/deactivate', authMiddleware, async (req, res) => {
   try {
     await db.query('UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [
